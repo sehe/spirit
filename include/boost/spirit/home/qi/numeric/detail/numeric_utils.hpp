@@ -262,10 +262,21 @@ namespace boost { namespace spirit { namespace qi { namespace detail
     ///////////////////////////////////////////////////////////////////////////
     //  extract_int: main code for extracting integers
     ///////////////////////////////////////////////////////////////////////////
+#if defined(ALLOW_SO_UNDERSCORE_HACK)
+#   define SPIRIT_SO_SKIP_UNDERSCORE_HACK()                                   \
+                if ('_' == *it) {                                             \
+                    ++it;                                                     \
+                    continue;                                                 \
+                }
+#else
+#   define SPIRIT_SO_SKIP_UNDERSCORE_HACK()
+#endif
+
 #define SPIRIT_NUMERIC_INNER_LOOP(z, x, data)                                 \
         if (!check_max_digits<MaxDigits>::call(count + leading_zeros)         \
             || it == last)                                                    \
             break;                                                            \
+        SPIRIT_SO_SKIP_UNDERSCORE_HACK()                                      \
         ch = *it;                                                             \
         if (!radix_check::is_valid(ch) || !extractor::call(ch, count, val))   \
             break;                                                            \
@@ -301,12 +312,25 @@ namespace boost { namespace spirit { namespace qi { namespace detail
             std::size_t leading_zeros = 0;
             if (!Accumulate)
             {
+#if defined(ALLOW_SO_UNDERSCORE_HACK)
+                // skip leading zeros
+                for(;it != last;++it) {
+                    if ('0' == *it && leading_zeros < MaxDigits) {
+                        ++leading_zeros;
+                        continue;
+                    } else if ('_' == *it) {
+                        continue;
+                    }
+                    break;
+                }
+#else
                 // skip leading zeros
                 while (it != last && *it == '0' && leading_zeros < MaxDigits)
                 {
                     ++it;
                     ++leading_zeros;
                 }
+#endif
             }
 
             typedef typename
@@ -366,6 +390,7 @@ namespace boost { namespace spirit { namespace qi { namespace detail
 #define SPIRIT_NUMERIC_INNER_LOOP(z, x, data)                                 \
         if (it == last)                                                       \
             break;                                                            \
+        SPIRIT_SO_SKIP_UNDERSCORE_HACK()                                      \
         ch = *it;                                                             \
         if (!radix_check::is_valid(ch))                                       \
             break;                                                            \
@@ -399,12 +424,25 @@ namespace boost { namespace spirit { namespace qi { namespace detail
             std::size_t count = 0;
             if (!Accumulate)
             {
+#if defined(ALLOW_SO_UNDERSCORE_HACK)
+                // skip leading zeros
+                for(;it != last;++it) {
+                    if ('0' == *it) {
+                        ++count;
+                        continue;
+                    } else if ('_' == *it) {
+                        continue;
+                    }
+                    break;
+                }
+#else
                 // skip leading zeros
                 while (it != last && *it == '0')
                 {
                     ++it;
                     ++count;
                 }
+#endif
 
                 if (it == last)
                 {
@@ -472,6 +510,7 @@ namespace boost { namespace spirit { namespace qi { namespace detail
     };
 
 #undef SPIRIT_NUMERIC_INNER_LOOP
+#undef SPIRIT_SO_SKIP_UNDERSCORE_HACK
 
     ///////////////////////////////////////////////////////////////////////////
     // Cast an signed integer to an unsigned integer
